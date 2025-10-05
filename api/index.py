@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import json
-import numpy as np
+import pandas as pd
+from pydantic import BaseModel
+from typing import List
 
 app = FastAPI()
 
@@ -9,34 +10,32 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["POST"],
     allow_headers=["*"],
 )
 
-# Load telemetry data (if needed for testing)
-with open("api/q-vercel-latency.json", "r") as f:
-    telemetry_data = json.load(f)
+# Load the telemetry data from JSON (adjust path if needed; assumes file in project root)
+data = pd.read_json("../q-vercel-latency.json")  # Assumes JSON is a list of dicts with 'region', 'latency', 'uptime'
+
+class RequestBody(BaseModel):
+    regions: List[str]
+    threshold_ms: int
 
 @app.post("/")
-async def process_telemetry(request: Request):
-    body = await request.json()
-    regions = body.get("regions", [])
-    threshold = body.get("threshold_ms", 180)
-    
-    result = {}
-    for region in regions:
-        data = telemetry_data.get(region, [])
-        if not data:
-            result[region] = {"avg_latency": None, "p95_latency": None, "avg_uptime": None, "breaches": 0}
-            continue
-        
-        latencies = [rec["latency_ms"] for rec in data]
-        uptimes = [rec["uptime"] for rec in data]
-        
-        result[region] = {
-            "avg_latency": float(np.mean(latencies)),
-            "p95_latency": float(np.percentile(latencies, 95)),
-            "avg_uptime": float(np.mean(uptimes)),
-            "breaches": sum(1 for x in latencies if x > threshold)
-        }
-    return result
+def get_metrics(body: RequestBody):
+    results = {}
+    for region in body.regions:
+        df_region = data[data['region'] == region]
+        if not df_region.empty:
+            avg_latency = df_region['latency'].mean()
+            p95_latency = df_region['latency'].quantile(0.95)
+            avg_uptime = df_region['uptime'].mean()
+            breaches = (df_region['latency'] > body.threshold_ms).sum()
+            results[region] = {
+                "avg_latency": avg_latency,
+                "p95_latency": p95_latency,
+                "avg_uptime": avg_uptime,
+                "breaches": int(breaches)  # Ensure breaches is an integer
+            }
+    return results
