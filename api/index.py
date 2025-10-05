@@ -16,7 +16,7 @@ app.add_middleware(
 )
 
 # Load the telemetry data from JSON (adjust path if needed; assumes file in project root)
-data = pd.read_json("../q-vercel-latency.json")  # Assumes JSON is a list of dicts with 'region', 'latency', 'uptime'
+data = pd.read_json("q-vercel-latency.json")  # Assumes JSON is a list of dicts with 'region', 'latency', 'uptime'
 
 class RequestBody(BaseModel):
     regions: List[str]
