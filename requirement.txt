@@ -1,3 +1,5 @@
 fastapi
 uvicorn
-numpy
+python-multipart
+pydantic
+fastapi[all]
