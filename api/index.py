@@ -14,7 +14,7 @@ app.add_middleware(
 )
 
 # Load telemetry data (if needed for testing)
-with open("q-vercel-latency.json", "r") as f:
+with open("api/q-vercel-latency.json", "r") as f:
     telemetry_data = json.load(f)
 
 @app.post("/")
